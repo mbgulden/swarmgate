@@ -1,13 +1,10 @@
-"""
-Universal Standalone Hypervisor Cockpit & Attention Review Server for SwarmGate.
-Provides a 100% portable, zero-dependency, rich local dashboard on port 8999.
-"""
-
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
+import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -15,6 +12,13 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, urlparse
 
 from swarmgate.bridge import PendingDecisionStore, SwarmgateBridge
+
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 def get_tailscale_ip() -> str:
@@ -349,7 +353,7 @@ class SwarmgateHTTPHandler(BaseHTTPRequestHandler):
 def run_server(port: int = 8999, host: str = "0.0.0.0"):
     server = HTTPServer((host, port), SwarmgateHTTPHandler)
     tailscale_ip = get_tailscale_ip()
-    print(f"🚀 Prismatic Hypervisor Cockpit live at:")
+    print("Prismatic Hypervisor Cockpit live at:")
     print(f"   • Local:     http://127.0.0.1:{port}")
     if tailscale_ip != "127.0.0.1":
         print(f"   • Tailscale: http://{tailscale_ip}:{port}")
