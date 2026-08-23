@@ -1,25 +1,48 @@
 """
 Escalation Index (E) Evaluator for SwarmGate.
-Deterministically quantifies Blast Radius, Structural Risk, and Reversibility.
+Deterministically quantifies Blast Radius, Structural Risk, Reversibility, and Parameter Injection Threats.
 """
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any, Dict, List, Optional
 
 from swarmgate.policy import GatePolicy
 from swarmgate.schemas import AttentionTier, DecisionPacket, DecisionStatus
 
+DANGEROUS_FLAG_PATTERNS = [
+    re.compile(r"--exec\b", re.IGNORECASE),
+    re.compile(r"--eval\b", re.IGNORECASE),
+    re.compile(r"-oProxyCommand\b", re.IGNORECASE),
+    re.compile(r"\$\(.*?\)", re.DOTALL),
+    re.compile(r"`.*?`", re.DOTALL),
+    re.compile(r"(\||;|&)\s*(rm|curl|wget|nc|bash|sh|python|perl)\b", re.IGNORECASE),
+    re.compile(r"\.\./\.\.", re.IGNORECASE),
+    re.compile(r"(~|\/etc\/|\/proc\/|\/sys\/|\.ssh\/)", re.IGNORECASE)
+]
+
 
 class EscalationEvaluator:
     """
     Evaluates mutations using the deterministic Attention Era Escalation formula:
     E = Structural Risk * [0.25 * Blast Radius + 0.75 * (1.0 - 0.30 * Reversibility)]
+    Includes AST parameter sanitization to block flag injection attacks.
     """
 
     def __init__(self, policy: Optional[GatePolicy] = None):
         self.policy = policy or GatePolicy.load()
+
+    def sanitize_arguments(self, raw_args: Dict[str, Any]) -> List[str]:
+        """Scans tool arguments for flag injection or path traversal payloads."""
+        warnings: List[str] = []
+        for key, val in raw_args.items():
+            s_val = str(val)
+            for pat in DANGEROUS_FLAG_PATTERNS:
+                if pat.search(s_val):
+                    warnings.append(f"Security Alert: Suspicious parameter injection detected in argument '{key}': {pat.pattern}")
+        return warnings
 
     def evaluate(
         self,
@@ -34,6 +57,12 @@ class EscalationEvaluator:
         metadata: Optional[Dict[str, Any]] = None
     ) -> DecisionPacket:
         reasons: List[str] = []
+
+        # Check for parameter flag injections in metadata
+        sec_warnings = self.sanitize_arguments(metadata or {})
+        if sec_warnings:
+            reasons.extend(sec_warnings)
+            custom_risk_override = 1.0  # Force maximum security risk on injected parameters
 
         # 1. Structural Risk (0.0 to 1.0)
         if custom_risk_override is not None:
