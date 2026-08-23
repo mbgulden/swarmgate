@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: swarmgate
+Version: 0.1.0
+Summary: Attention Governor & Escalation Hypervisor for Multi-Agent Swarms
+Author: Michael Gulden
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
+# SwarmGate: Attention Governor & Escalation Hypervisor
+
+SwarmGate is Stage 3 of the Swarm Suite Agent Hypervisor stack. It sits between deterministic verification (`swarmproof`) and state commitment (`swarmlock`), calculating the Escalation Index ($E$) to protect human operator attention while strictly gating high-blast-radius mutations.
