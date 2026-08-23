@@ -39,6 +39,12 @@ class DecisionPacket:
     proof_id: Optional[str] = None
     status: DecisionStatus = DecisionStatus.PENDING
     diff_summary: Optional[str] = None
+    task_id: Optional[str] = None
+    task_title: Optional[str] = None
+    agent_intent: Optional[str] = None
+    plain_english_risk: Optional[str] = None
+    compensation_plan: Optional[str] = None
+    unified_diff: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
     resolved_at: Optional[float] = None
     resolved_by: Optional[str] = None
@@ -70,6 +76,12 @@ class DecisionPacket:
             proof_id=data.get("proof_id"),
             status=status,
             diff_summary=data.get("diff_summary"),
+            task_id=data.get("task_id"),
+            task_title=data.get("task_title"),
+            agent_intent=data.get("agent_intent"),
+            plain_english_risk=data.get("plain_english_risk"),
+            compensation_plan=data.get("compensation_plan"),
+            unified_diff=data.get("unified_diff"),
             timestamp=float(data.get("timestamp", time.time())),
             resolved_at=data.get("resolved_at"),
             resolved_by=data.get("resolved_by"),
