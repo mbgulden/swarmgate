@@ -17,17 +17,61 @@ from swarmgate.distiller import DecisionDiffDistiller, DistilledCard
 from swarmgate.schemas import AttentionTier, DecisionPacket, DecisionStatus
 
 logger = logging.getLogger("swarmgate.bridge")
+# Default locations. Both are overridable — see resolve_swarmock_socket_path()
+# and PendingDecisionStore.configure() — so embedders (e.g. the Prismatic
+# hypervisor) can point the bridge at their own directories instead of these
+# unix-leaning defaults.
 SWARMLOCK_SOCK = "/tmp/swarmlock.sock"
 PENDING_FILE = Path.home() / ".swarmgate" / "pending_decisions.json"
 
+#: Environment variable overriding the swarmlock daemon socket path.
+ENV_SWARMLOCK_SOCK = "SWARMGATE_SWARMLOCK_SOCK"
+#: Environment variable overriding the pending-decisions file path.
+ENV_PENDING_FILE = "SWARMGATE_PENDING_FILE"
 
-def send_swarmlock_ipc(payload: Dict[str, Any], socket_path: str = SWARMLOCK_SOCK) -> Optional[Dict[str, Any]]:
-    if not os.path.exists(socket_path):
+
+def resolve_swarmock_socket_path(socket_path: Optional[str] = None) -> str:
+    """Resolve the swarmlock daemon socket path.
+
+    Precedence: explicit argument > ``SWARMGATE_SWARMLOCK_SOCK`` env var >
+    the ``SWARMLOCK_SOCK`` module default.
+    """
+    if socket_path:
+        return socket_path
+    return os.environ.get(ENV_SWARMLOCK_SOCK) or SWARMLOCK_SOCK
+
+
+def _resolve_pending_file(explicit: Optional[str | Path] = None) -> Path:
+    """Resolve the pending-decisions file path.
+
+    Precedence: explicit argument (incl. PendingDecisionStore.configure()) >
+    ``SWARMGATE_PENDING_FILE`` env var > the ``PENDING_FILE`` module default.
+
+    ``PENDING_FILE`` is read dynamically (not captured) so existing callers
+    that monkeypatch the module constant keep working.
+    """
+    if explicit is not None:
+        return Path(explicit).expanduser()
+    env = os.environ.get(ENV_PENDING_FILE)
+    if env:
+        return Path(env).expanduser()
+    return PENDING_FILE
+
+
+def send_swarmlock_ipc(payload: Dict[str, Any], socket_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Send a payload to the swarmlock daemon over its unix socket.
+
+    ``socket_path`` overrides the default; when omitted the
+    ``SWARMGATE_SWARMLOCK_SOCK`` env var is honored, then the module default.
+    Returns None when the daemon is unreachable (fail-open by design).
+    """
+    resolved = resolve_swarmock_socket_path(socket_path)
+    if not os.path.exists(resolved):
         return None
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
             client.settimeout(2.0)
-            client.connect(socket_path)
+            client.connect(resolved)
             client.sendall(json.dumps(payload).encode("utf-8") + b"\n")
             line = client.recv(8192)
             if line:
@@ -41,25 +85,44 @@ def send_swarmlock_ipc(payload: Dict[str, Any], socket_path: str = SWARMLOCK_SOC
 class PendingDecisionStore:
     """
     Thread-safe storage for active Tier 3 pending decisions awaiting human operator resolution.
+
+    The backing file defaults to ``~/.swarmgate/pending_decisions.json`` but is
+    configurable: call ``PendingDecisionStore.configure(pending_file=...)`` for
+    an explicit path, or set the ``SWARMGATE_PENDING_FILE`` env var. The
+    module-level ``PENDING_FILE`` constant remains a working override point
+    for tests that monkeypatch it.
     """
+
+    _configured_path: Optional[Path] = None
+
+    @classmethod
+    def configure(cls, pending_file: Optional[str | Path] = None) -> None:
+        """Set (or clear, with None) an explicit pending-decisions file path."""
+        cls._configured_path = Path(pending_file).expanduser() if pending_file else None
+
+    @classmethod
+    def _path(cls) -> Path:
+        return _resolve_pending_file(cls._configured_path)
 
     @classmethod
     def load_all(cls) -> Dict[str, Dict[str, Any]]:
-        if not PENDING_FILE.exists():
+        path = cls._path()
+        if not path.exists():
             return {}
         try:
-            with open(PENDING_FILE, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             return {}
 
     @classmethod
     def save_all(cls, data: Dict[str, Dict[str, Any]]) -> None:
-        PENDING_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp = PENDING_FILE.with_suffix(".tmp")
+        path = cls._path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        os.replace(tmp, PENDING_FILE)
+        os.replace(tmp, path)
 
     @classmethod
     def add(cls, decision: DecisionPacket, card: DistilledCard) -> None:
