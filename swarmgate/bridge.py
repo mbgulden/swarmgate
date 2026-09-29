@@ -10,7 +10,7 @@ import logging
 import os
 import socket
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from swarmgate.digest import AsyncDigestManager
 from swarmgate.distiller import DecisionDiffDistiller, DistilledCard
