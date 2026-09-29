@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import difflib
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
 from swarmgate.schemas import DecisionPacket

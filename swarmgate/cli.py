@@ -14,7 +14,6 @@ from swarmgate.bridge import PendingDecisionStore, SwarmgateBridge
 from swarmgate.digest import AsyncDigestManager
 from swarmgate.distiller import DecisionDiffDistiller
 from swarmgate.evaluator import EscalationEvaluator
-from swarmgate.policy import GatePolicy
 from swarmgate.schemas import AttentionTier
 from swarmgate.server import run_server
 

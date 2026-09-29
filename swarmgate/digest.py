@@ -6,10 +6,8 @@ Maintains an append-only JSONL log of non-blocking Tier 2 mutations for periodic
 from __future__ import annotations
 
 import json
-import os
-import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from swarmgate.schemas import DecisionPacket
 
