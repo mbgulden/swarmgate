@@ -91,7 +91,7 @@ def test_pending_store_module_constant_still_overridable(monkeypatch, tmp_path):
 
 def test_pending_store_default_unchanged():
     assert PendingDecisionStore._path() == PENDING_FILE
-    assert str(PENDING_FILE).endswith(".swarmgate/pending_decisions.json")
+    assert str(PENDING_FILE).endswith(os.path.join(".swarmgate", "pending_decisions.json"))
 
 
 def test_configure_none_clears():
