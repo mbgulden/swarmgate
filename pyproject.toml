@@ -6,19 +6,23 @@ build-backend = "setuptools.build_meta"
 name = "swarmgate"
 version = "0.1.0"
 description = "Attention Governor & Escalation Hypervisor for Multi-Agent Swarms"
-license = "MIT"
+license = { text = "MIT" }
 readme = "README.md"
 authors = [{ name = "Michael Gulden", email = "michael@growthwebdev.com" }]
 requires-python = ">=3.10"
 dependencies = []
 classifiers = [
     "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
 
 [project.scripts]
 swarmgate = "swarmgate.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.8"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
